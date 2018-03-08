@@ -1,34 +1,45 @@
 import numpy as np
+import torch
 
 
 
 class Dataset():
-    def __init__(self, opt, train_dataset=None):
+    def __init__(self, opt, train_dataset=None, stats=None):
         if train_dataset is None:
             tmp = np.load(opt.train_path)
         else:
             tmp = np.load(opt.val_path)
         self.data_type = opt.data_type
         self.target_type = opt.target_type
-        self.data = tmp['EnergyDeposit'].astype('float32')
-        self.target = tmp['ParticleMomentum'][:, 2].astype('float32')
-        mid = self.data.shape[1]//2
-        if opt.image_size < self.data.shape[1]:
-            self.data = self.data[:, mid-opt.image_size//2:mid+opt.image_size//2,
-                                     mid-opt.image_size//2:mid+opt.image_size//2]
-        elif opt.image_size > self.data.shape[1]:
+        data = tmp['EnergyDeposit'].astype('float32')
+        target = tmp['ParticleMomentum'][:, 2].astype('float32')
+        mid = data.shape[1]//2
+        if opt.image_size < data.shape[1]:
+            data = data[:, mid-opt.image_size//2:mid+opt.image_size//2,
+                           mid-opt.image_size//2:mid+opt.image_size//2]
+        elif opt.image_size > data.shape[1]:
             pad = (opt.image_size - data.shape[1])//2
-            self.data = np.pad(self.data, [(0, 0), (pad, pad), (pad, pad)], 
+            data = np.pad(data, [(0, 0), (pad, pad), (pad, pad)], 
                                'constant', constant_values=0)
-            assert self.data.shape[1] == opt.image_size, 'image_size must have same parity as data.shape[1]'
+            assert data.shape[1] == opt.image_size, 'image_size must have same parity as data.shape[1]'
         if train_dataset is None:
-            self.mean = self.data.mean(0)
-            self.std = self.data.std(0)
+            self.mean = data.mean(0)
+            self.std = data.std(0)
+            if opt.data_type == 'norm':
+                stats.mean = torch.from_numpy(self.mean.astype('float32')[None]).cuda()
+                stats.std = torch.from_numpy(self.std.astype('float32')[None]).cuda()
+            elif opt.data_type == 'none':
+                stats.mean = None
+                stats.std = None
         else:
             self.mean = None
             self.std = None
-        self.input_data = self.get_input(self.data, self.data_type)
-        self.input_target = self.target
+        self.data = data.copy()
+        self.input_data = self.get_input(data, self.data_type)
+        if stats is not None:
+            self.input_stats = stats.calc_stats_numpy(self.data)
+        else:
+            self.input_stats = target
 
     def get_input(self, data, data_type):
         if data_type == 'none':
@@ -47,7 +58,7 @@ class Dataset():
         return output_data
 
     def __getitem__(self, index):
-        return self.input_data[index][None], self.input_target[index][None]
+        return self.input_data[index][None], self.input_stats[index]
 
     def __len__(self):
         return self.input_data.shape[0]

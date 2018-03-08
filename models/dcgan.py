@@ -63,7 +63,7 @@ class Generator(nn.Module):
         return output
 
 class Discriminator(nn.Module):
-    def __init__(self, out_channels, input_size, conv_output_size=4):
+    def __init__(self, out_channels, input_size, num_pred=1, conv_output_size=4):
         super(Discriminator, self).__init__()
         self.conv_output_size = conv_output_size
         n_conv_blocks = int(math.log(input_size // conv_output_size, 2))
@@ -76,7 +76,7 @@ class Discriminator(nn.Module):
         for i in range(n_conv_blocks):
             layers.append(Downsampling(in_channels * 2**i))
         self.conv = nn.Sequential(*layers)
-        self.linear = nn.Linear(in_channels * 2**n_conv_blocks * conv_output_size**2, 1)
+        self.linear = nn.Linear(in_channels * 2**n_conv_blocks * conv_output_size**2, num_pred)
 
     def forward(self, input):
         output = self.conv(input)
