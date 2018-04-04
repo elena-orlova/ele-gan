@@ -1,0 +1,1 @@
+python train.py --gpu_id 7 --train_data_path data/dataset/ecalNT_50K_e_10_100.npz --val_data_path data/dataset/ecalNT_10K_e_10_100.npz --experiment_name calo_cond_in-16 --norm batch --batch_size 64 --mse_weight 1. --num_epoch 2000 --in_channels 16
